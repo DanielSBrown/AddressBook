@@ -3,17 +3,31 @@ from flask import Flask, jsonify, request, abort
 from elasticsearch import Elasticsearch
 import json
 from contact import *
+
 es = Elasticsearch()
+
+
 
 app = Flask(__name__)
 @app.route('/contact', methods=['GET'])
 def getAllContacts():
+    pageSize = request.headers.get("pageSize")
+    queryFrom = request.headers.get("page")
+    queryString = request.headers.get("query")
+    pageSize = pageSize if pageSize is not None else 10
+    queryFrom = queryFrom if queryFrom is not None else 0
+    queryString = queryString if queryString is not None else "_exists_ : _id"
+    
     doc = {
-        'size' : 10000,
-        'query': {
-            'match_all' : {}
-       }
-   }
+        'size' : pageSize,
+        'from' : queryFrom,
+        "query": {
+            "query_string" : {
+                "query" : queryString
+            }
+        }
+    }
+    print(doc)
     result = es.search(index='contacts', body=doc)
     return jsonify(result)
 
@@ -41,6 +55,8 @@ def createContact():
     additionalFields = assignAdditionalFieldsFromRequest(d)
 
     validationList = validateAdditionalFields(additionalFields)
+
+    # Cleans out None from the list
     cleanedValidationList =  [i for i in validationList if i]
     if len(cleanedValidationList) > 0:
         abort(400, '\n'.join(cleanedValidationList))
@@ -55,10 +71,9 @@ def createContact():
     for field, value in additionalFields.items():
         body[field] = value
 
-    print(body)
-    #result = es.index(index='contacts', doc_type='contact',  body=body)
+    result = es.index(index='contacts', doc_type='contact',  body=body)
 
-    #return jsonify(result)
+    return jsonify(result)
 
 
 
@@ -76,33 +91,47 @@ def updateContact(name):
     response = getContactFromName(name, es, 1)
     if response["hits"]["total"] == 0:
         abort(400, "User does not exist")
+
+
     my_json = (request.data.decode('utf8').replace("'", '"'))
     d = json.loads(my_json)
 
-    # Get the fields from the body
+    # Check for  null first/last name
+    if "fName" not in d or "lName" not in d:
+        abort(400, "You must specify a first and last name")
 
     fName = d["fName"]
     lName = d["lName"]
-    additionalFields = {}
-    for field in fields:
-        if field in d:
-            additionalFields[field] = d[field]
-    # if "phoneNumber" in d:
-    #     phoneNumber = d["phoneNumber"]
-    #     if (len(phoneNumber) > 10):
-    #         abort(400, "Phone Number must not exceed 10 digits (e.g. 1234567890)")
 
     contact = Contact(fName, lName)
 
+    if doesContactExist(contact, es):
+        abort(400, "Contact already exists")
+
+
+    additionalFields = assignAdditionalFieldsFromRequest(d)
+
+    validationList = validateAdditionalFields(additionalFields)
+
+    # Cleans out None from the list
+    cleanedValidationList =  [i for i in validationList if i]
+    if len(cleanedValidationList) > 0:
+        abort(400, '\n'.join(cleanedValidationList))
+
+    # base fields in the body
     body = {
         'fName': fName,
         'lName': lName,
-        'phoneNumber' : phoneNumber,
         'timestamp': datetime.now()
     }
-    #result = es.index(index='contacts', doc_type='contact', id=response["hits"]["hits"][0]["_id"], body=body)
+    # additional fields in the body
+    for field, value in additionalFields.items():
+        body[field] = value
 
-    #return jsonify(result)
+
+    result = es.index(index='contacts', doc_type='contact', id=response["hits"]["hits"][0]["_id"], body=body)
+
+    return jsonify(result)
 
 
 @app.route('/contact/<name>', methods=['DELETE'])
