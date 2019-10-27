@@ -11,6 +11,7 @@ es = Elasticsearch()
 app = Flask(__name__)
 @app.route('/contact', methods=['GET'])
 def get_all_contacts():
+    # the main GET for all requests, with some header variables
     page_size = request.headers.get("pageSize")
     query_from = request.headers.get("page")
     query_string = request.headers.get("query")
@@ -33,6 +34,8 @@ def get_all_contacts():
 
 @app.route('/contact', methods=['POST'])
 def create_contact():
+    # The main POST endpoint for creating a new contact
+
     # Begin by formatting the data sent in the request into a JSON object
 
     my_json = (request.data.decode('utf8').replace("'", '"'))
@@ -78,6 +81,7 @@ def create_contact():
 
 @app.route('/contact/<name>', methods=['GET'])
 def get_contact(name):
+    # Gets the row of a contact based on name
     response = get_contact_from_name(name, es, 1, 'contacts')
     if response["hits"]["total"] == 0:
         abort(400, "User does not exist")
@@ -87,6 +91,7 @@ def get_contact(name):
 
 @app.route('/contact/<name>', methods=['PUT'])
 def update_contact(name):
+    # Updates a row of a contact based on name
     response = get_contact_from_name(name, es, 1, 'contacts')
     if response["hits"]["total"] == 0:
         abort(400, "User does not exist")
@@ -132,6 +137,7 @@ def update_contact(name):
 
 @app.route('/contact/<name>', methods=['DELETE'])
 def delete_contact(name):
+    # Deletes a row of a contact based on a name
     response = get_contact_from_name(name, es, 1, 'contacts')
     if response["hits"]["total"] == 0:
         abort(400, "User does not exist")

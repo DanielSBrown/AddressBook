@@ -19,6 +19,7 @@ fields = {
 }
 
 def assign_additional_fields_from_request(requestDict):
+    # Goes through the response from the endpoint, and checks if the response dict has any of the fields in the fields constant. It assigns what is has to a new dict
     additional_fields = {}
     for field in fields:
         if field in requestDict:
@@ -26,6 +27,7 @@ def assign_additional_fields_from_request(requestDict):
     return additional_fields
 
 def validate_additional_fields(additional_fields):
+    # Runs through the fields, checks if they exist in additional_fields, and then runs the helper on each of them
     validation_list = []
     for field in fields:
         if field in additional_fields:
@@ -33,6 +35,7 @@ def validate_additional_fields(additional_fields):
     return validation_list
 
 def validate_field(field, value):
+    # Validates on a subset of fields now based on simple length checks
     if field == "phoneNumber":
         if len(value) != 10:
             return "Phone Numbers must be 10 characters"
@@ -70,12 +73,14 @@ def search_cluster_for_contact(contact, es, size, index):
     return es.search(index=index, body=doc)
 
 def does_contact_exist(contact, es, index):
+    # checks if a contact exists in a cluster
     response = search_cluster_for_contact(contact, es, 1, index)
     if response is None:
         return False
     return response["hits"]["total"] > 0
 
 def get_names_from_name(name):
+    # Returns a first name, last name if it's a valid name or None, None
     try:
         names = name.split()
         if len(names) < 2:
@@ -85,6 +90,7 @@ def get_names_from_name(name):
         return None, None
 
 def get_contact_from_name(name, es, size, index):
+    # Gets an elasticsearch result from name via a Contact
     fName, lName = get_names_from_name(name)
     contact = Contact(fName, lName)
     return search_cluster_for_contact(contact, es, size, index)
