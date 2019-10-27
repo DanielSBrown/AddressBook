@@ -4,6 +4,40 @@ class Contact:
         self.fName = fName
         self.lName = lName
 
+fields = {
+    "phoneNumber",
+    "streetAddress",
+    "suite",
+    "state",
+    "zip"
+}
+
+def assignAdditionalFieldsFromRequest(d):
+    additionalFields = {}
+    for field in fields:
+        if field in d:
+            additionalFields[field] = d[field]
+    return additionalFields
+
+def validateAdditionalFields(additionalFields):
+    validationList = []
+    for field in fields:
+        if field in additionalFields:
+            validationList.append(validateField(field, additionalFields[field]))
+    return validationList
+
+def validateField(field, value):
+    if field == "phoneNumber":
+        if len(value) != 10:
+            return "Phone Numbers must be 10 characters"
+    elif field == "zip":
+        if len(value) != 5:
+            return "Zip Codes must be 5 characters"
+    else:
+        return None
+    # TODO: ADD MORE VALIDATIONS BASED ON USER NEEDS
+
+
 def searchClusterForContact(contact, es, size):
     # Queries the ES cluster, and returns if there are any hits
     if contact.fName is None or contact.lName is None:
