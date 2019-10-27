@@ -41,3 +41,8 @@ def getNamesFromName(name):
         return name.split()[0], name.split()[1]
     except:
         return None, None
+
+def getContactFromName(name, es, size):
+    fName, lName = getNamesFromName(name)
+    contact = Contact(fName, lName)
+    return searchClusterForContact(contact, es, size)

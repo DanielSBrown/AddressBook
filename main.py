@@ -45,16 +45,40 @@ def createContact():
 
     return jsonify(result)
 
+@app.route('/contact/<name>', methods=['GET'])
+def getContact(name):
+    response = getContactFromName(name, es, 1)
+    if response["hits"]["total"] == 0:
+        abort(400, "User does not exist")
+    return jsonify(response)
+
+@app.route('/contact/<name>', methods=['PUT'])
+def updateContact(name):
+    response = getContactFromName(name, es, 1)
+    if response["hits"]["total"] == 0:
+        abort(400, "User does not exist")
+    my_json = (request.data.decode('utf8').replace("'", '"'))
+    d = json.loads(my_json)
+
+    # Get the fields from the body
+
+    fName = d["fName"]
+    lName = d["lName"]
+    contact = Contact(fName, lName)
+
+    body = {
+        'fName': fName,
+        'lName': lName,
+        'timestamp': datetime.now()
+    }
+    result = es.index(index='contacts', doc_type='contact', id=response["hits"]["hits"][0]["_id"], body=body)
+
+    return jsonify(result)
 
 
-# @app.route('contact', methods=['PUT'])
-# def updateContact:
-#
 @app.route('/contact/<name>', methods=['DELETE'])
 def deleteContact(name):
-    fName, lName = getNamesFromName(name)
-    contact = Contact(fName, lName)
-    response = searchClusterForContact(contact, es, 1)
+    response = getContactFromName(name, es, 1)
     if response["hits"]["total"] == 0:
         abort(400, "User does not exist")
     result = es.delete(index='contacts', doc_type='contact', id=response["hits"]["hits"][0]["_id"])
