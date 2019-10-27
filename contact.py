@@ -4,6 +4,12 @@ class Contact:
         self.fName = fName
         self.lName = lName
 
+
+
+
+
+
+
 fields = {
     "phoneNumber",
     "streetAddress",
@@ -12,21 +18,21 @@ fields = {
     "zip"
 }
 
-def assignAdditionalFieldsFromRequest(d):
-    additionalFields = {}
+def assign_additional_fields_from_request(requestDict):
+    additional_fields = {}
     for field in fields:
-        if field in d:
-            additionalFields[field] = d[field]
-    return additionalFields
+        if field in requestDict:
+            additional_fields[field] = requestDict[field]
+    return additional_fields
 
-def validateAdditionalFields(additionalFields):
-    validationList = []
+def validate_additional_fields(additional_fields):
+    validation_list = []
     for field in fields:
-        if field in additionalFields:
-            validationList.append(validateField(field, additionalFields[field]))
-    return validationList
+        if field in additional_fields:
+            validation_list.append(validate_field(field, additional_fields[field]))
+    return validation_list
 
-def validateField(field, value):
+def validate_field(field, value):
     if field == "phoneNumber":
         if len(value) != 10:
             return "Phone Numbers must be 10 characters"
@@ -38,7 +44,7 @@ def validateField(field, value):
     # TODO: ADD MORE VALIDATIONS BASED ON USER NEEDS
 
 
-def searchClusterForContact(contact, es, size):
+def search_cluster_for_contact(contact, es, size, index):
     # Queries the ES cluster, and returns if there are any hits
     if contact.fName is None or contact.lName is None:
         return None
@@ -61,13 +67,15 @@ def searchClusterForContact(contact, es, size):
         "size": size
 
     }
-    return es.search(index='contacts', body=doc)
+    return es.search(index=index, body=doc)
 
-def doesContactExist(contact, es):
-    response = searchClusterForContact(contact, es, 1)
+def does_contact_exist(contact, es, index):
+    response = search_cluster_for_contact(contact, es, 1, index)
+    if response is None:
+        return False
     return response["hits"]["total"] > 0
 
-def getNamesFromName(name):
+def get_names_from_name(name):
     try:
         names = name.split()
         if len(names) < 2:
@@ -76,7 +84,7 @@ def getNamesFromName(name):
     except:
         return None, None
 
-def getContactFromName(name, es, size):
-    fName, lName = getNamesFromName(name)
+def get_contact_from_name(name, es, size, index):
+    fName, lName = get_names_from_name(name)
     contact = Contact(fName, lName)
-    return searchClusterForContact(contact, es, size)
+    return search_cluster_for_contact(contact, es, size, index)

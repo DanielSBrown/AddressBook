@@ -10,30 +10,29 @@ es = Elasticsearch()
 
 app = Flask(__name__)
 @app.route('/contact', methods=['GET'])
-def getAllContacts():
-    pageSize = request.headers.get("pageSize")
-    queryFrom = request.headers.get("page")
-    queryString = request.headers.get("query")
-    pageSize = pageSize if pageSize is not None else 10
-    queryFrom = queryFrom if queryFrom is not None else 0
-    queryString = queryString if queryString is not None else "_exists_ : _id"
-    
+def get_all_contacts():
+    page_size = request.headers.get("pageSize")
+    query_from = request.headers.get("page")
+    query_string = request.headers.get("query")
+    page_size = page_size if page_size is not None else 10
+    query_from = query_from if query_from is not None else 0
+    query_string = query_string if query_string is not None else "_exists_ : _id"
+
     doc = {
-        'size' : pageSize,
-        'from' : queryFrom,
+        'size' : page_size,
+        'from' : query_from,
         "query": {
             "query_string" : {
-                "query" : queryString
+                "query" : query_string
             }
         }
     }
-    print(doc)
     result = es.search(index='contacts', body=doc)
     return jsonify(result)
 
 
 @app.route('/contact', methods=['POST'])
-def createContact():
+def create_contact():
     # Begin by formatting the data sent in the request into a JSON object
 
     my_json = (request.data.decode('utf8').replace("'", '"'))
@@ -48,18 +47,18 @@ def createContact():
 
     contact = Contact(fName, lName)
 
-    if doesContactExist(contact, es):
+    if does_contact_exist(contact, es, 'contacts'):
         abort(400, "Contact already exists")
 
 
-    additionalFields = assignAdditionalFieldsFromRequest(d)
+    additional_fields = assign_additional_fields_from_request(d)
 
-    validationList = validateAdditionalFields(additionalFields)
+    validation_list = validate_additional_fields(additional_fields)
 
     # Cleans out None from the list
-    cleanedValidationList =  [i for i in validationList if i]
-    if len(cleanedValidationList) > 0:
-        abort(400, '\n'.join(cleanedValidationList))
+    cleaned_validation_list =  [i for i in validation_list if i]
+    if len(cleaned_validation_list) > 0:
+        abort(400, '\n'.join(cleaned_validation_list))
 
     # base fields in the body
     body = {
@@ -68,7 +67,7 @@ def createContact():
         'timestamp': datetime.now()
     }
     # additional fields in the body
-    for field, value in additionalFields.items():
+    for field, value in additional_fields.items():
         body[field] = value
 
     result = es.index(index='contacts', doc_type='contact',  body=body)
@@ -78,8 +77,8 @@ def createContact():
 
 
 @app.route('/contact/<name>', methods=['GET'])
-def getContact(name):
-    response = getContactFromName(name, es, 1)
+def get_contact(name):
+    response = get_contact_from_name(name, es, 1, 'contacts')
     if response["hits"]["total"] == 0:
         abort(400, "User does not exist")
     return jsonify(response)
@@ -87,8 +86,8 @@ def getContact(name):
 
 
 @app.route('/contact/<name>', methods=['PUT'])
-def updateContact(name):
-    response = getContactFromName(name, es, 1)
+def update_contact(name):
+    response = get_contact_from_name(name, es, 1, 'contacts')
     if response["hits"]["total"] == 0:
         abort(400, "User does not exist")
 
@@ -103,20 +102,18 @@ def updateContact(name):
     fName = d["fName"]
     lName = d["lName"]
 
-    contact = Contact(fName, lName)
+    existingUserCheck = get_contact_from_name(fName + " " + lName, es, 1, 'contacts')
+    if existingUserCheck["hits"]["total"] != 0:
+        abort(400, "You cannot change this user's name to the name of another user")
 
-    if doesContactExist(contact, es):
-        abort(400, "Contact already exists")
+    additional_fields = assign_additional_fields_from_request(d)
 
-
-    additionalFields = assignAdditionalFieldsFromRequest(d)
-
-    validationList = validateAdditionalFields(additionalFields)
+    validation_list = validate_additional_fields(additional_fields)
 
     # Cleans out None from the list
-    cleanedValidationList =  [i for i in validationList if i]
-    if len(cleanedValidationList) > 0:
-        abort(400, '\n'.join(cleanedValidationList))
+    cleaned_validation_list =  [i for i in validation_list if i]
+    if len(cleaned_validation_list) > 0:
+        abort(400, '\n'.join(cleaned_validation_list))
 
     # base fields in the body
     body = {
@@ -125,18 +122,17 @@ def updateContact(name):
         'timestamp': datetime.now()
     }
     # additional fields in the body
-    for field, value in additionalFields.items():
+    for field, value in additional_fields.items():
         body[field] = value
 
 
     result = es.index(index='contacts', doc_type='contact', id=response["hits"]["hits"][0]["_id"], body=body)
-
     return jsonify(result)
 
 
 @app.route('/contact/<name>', methods=['DELETE'])
-def deleteContact(name):
-    response = getContactFromName(name, es, 1)
+def delete_contact(name):
+    response = get_contact_from_name(name, es, 1, 'contacts')
     if response["hits"]["total"] == 0:
         abort(400, "User does not exist")
     result = es.delete(index='contacts', doc_type='contact', id=response["hits"]["hits"][0]["_id"])
